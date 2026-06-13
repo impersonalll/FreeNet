@@ -105,7 +105,6 @@ class FreeNet(QWidget):
         frame_layout = QVBoxLayout(window_frame)
         frame_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Сохраняем title_bar в self, чтобы проверять клики по нему
         self.title_bar = QWidget()
         title_bar_layout = QHBoxLayout(self.title_bar)
         title_bar_layout.setContentsMargins(20, 15, 15, 10)
