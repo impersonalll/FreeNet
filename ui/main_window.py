@@ -5,13 +5,13 @@ import sys
 import psutil
 from PySide6.QtCore import Qt, QPoint, QTimer
 from PySide6.QtGui import QIcon, QAction
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
+from PySide6.QtWidgets import (QStyle, QWidget, QVBoxLayout, QHBoxLayout, 
                              QPushButton, QLabel, QSystemTrayIcon, 
                              QMenu, QStackedWidget, QApplication)
 
 from ui.main_page import MainPage
 from ui.settings_page import SettingsPage
-from core.services import install_and_start_logic, kill_services
+from core.services import kill_services
 
 
 def get_resource_path(relative_path):
@@ -31,9 +31,21 @@ class FreeNet(QWidget):
 
     def create_tray(self):
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon(get_resource_path("assets/icon.ico")))
+        
+        icon_path = get_resource_path("assets/icon.ico")
+        
+        if os.path.exists(icon_path):
+            self.tray_icon.setIcon(QIcon(icon_path))
+        else:
+            style = QApplication.style()
+            fallback_icon = style.standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)
+            self.tray_icon.setIcon(fallback_icon)
+            print(f"Предупреждение: Файл иконки не найден по пути {icon_path}. Использован системный fallback.")
 
         tray_menu = QMenu()
+        
+        tray_menu.setWindowFlags(tray_menu.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
+        
         show_action = QAction("Открыть", self)
         quit_action = QAction("Выход", self)
 
@@ -105,7 +117,6 @@ class FreeNet(QWidget):
         frame_layout = QVBoxLayout(window_frame)
         frame_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Сохраняем title_bar в self, чтобы проверять клики по нему
         self.title_bar = QWidget()
         title_bar_layout = QHBoxLayout(self.title_bar)
         title_bar_layout.setContentsMargins(20, 15, 15, 10)
@@ -170,7 +181,8 @@ class FreeNet(QWidget):
         threading.Thread(target=self._bg_stop_services, daemon=True).start()
 
     def _bg_install_and_start(self):
-        success, message = install_and_start_logic(self.main_page)
+        from core.services import install_and_start_logic
+        success, message = install_and_start_logic(self)
         if success:
             self.main_page.set_connected_state()
         else:
@@ -195,7 +207,17 @@ class FreeNet(QWidget):
 
     def mouseReleaseEvent(self, event):
         self.old_pos = None
-        
+
+    def update_status(self, text, is_error=False):
+        print(text)
+
+        if hasattr(self, 'status_label'):
+            self.status_label.setText(text)
+            if is_error:
+                self.status_label.setStyleSheet("color: red;")
+            else:
+                self.status_label.setStyleSheet("color: white;")
+
     def update_system_stats(self):
         try:
             is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0

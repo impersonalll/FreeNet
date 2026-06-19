@@ -27,6 +27,7 @@ def update_hosts_file() -> None:
             f.write(clean_content)
             f.write("\n\n" + MARKER + "\n")
             f.write(new_hosts)
+                
             f.write("\n# === GeoHideDNS End ===\n")
         os.system("ipconfig /flushdns")
     except:
