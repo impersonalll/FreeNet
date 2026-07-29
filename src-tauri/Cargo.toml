@@ -1,0 +1,28 @@
+[package]
+name = "freenet-app"
+version = "1.0.0"
+description = "FREENET Control Panel"
+authors = ["FREENET"]
+edition = "2021"
+
+[lib]
+name = "freenet_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+zip = "2"
+tokio-util = { version = "0.7", features = ["io"] }
+futures-util = "0.3"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
