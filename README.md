@@ -1,59 +1,83 @@
+<div align="center">
+
 # FREENET
 
-Desktop panel for managing **zapret** and **tg-ws-proxy** services. Built with Tauri v2 + React + TypeScript.
+### Панель управления для zapret и tg-ws-proxy
 
-## Features
+![Tauri](https://img.shields.io/badge/Tauri-v2-blue?logo=tauri)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)
+![Rust](https://img.shields.io/badge/Rust-2021-CE422B?logo=rust)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-- **One-click toggle** — start/stop all services from a single power button
-- **Auto-download** — fetches latest releases from GitHub (zapret v1.10.0, tg-ws-proxy v1.9.0)
-- **Silent launch** — winws.exe runs directly without CMD windows
-- **Process monitoring** — real-time status polling every 3 seconds
-- **Tray minimization** — closes to system tray, not exit
-- **Admin elevation** — auto-requests UAC on startup for WinDivert support
-- **Hosts bypass** — optional hosts file modification for blocked domains
+</div>
 
-## Tech Stack
+---
 
-- **Backend:** Rust (Tauri v2)
-- **Frontend:** React 19, TypeScript, Tailwind CSS 3, Vite 6
-- **Design:** "Ultraviolet Vision" — deep violet glassmorphism, Sora font
+## Что это
 
-## Building
+Desktop-приложение для управления сетевыми сервисами обхода блокировок. Один клик — и все сервисы запущены.
+
+- **zapret** — DPI desync для обхода блокировок Discord, YouTube и других сервисов
+- **tg-ws-proxy** — WebSocket-прокси для Telegram
+
+## Возможности
+
+| Функция | Описание |
+|---------|----------|
+| **Однокнопочный запуск** | Включение/выключение всех сервисов одной кнопкой |
+| **Авто-загрузка** | Скачивание последних релизов прямо с GitHub |
+| **Тихий запуск** | winws.exe запускается напрямую — никаких окон CMD |
+| **Мониторинг** | Отслеживание статуса процессов каждые 3 секунды |
+| **Системный трей** | Сворачивается в трей, а не закрывается |
+| **Авто-повышение прав** | Запрос UAC при старте для поддержки WinDivert |
+| **Обход через hosts** | Опциональная модификация файла hosts |
+
+## Стек технологий
+
+```
+Бэкенд:     Rust + Tauri v2
+Фронтенд:   React 19 + TypeScript + Tailwind CSS 3
+Сборка:     Vite 6
+Дизайн:     "Ultraviolet Vision" — стеклянный градиент, шрифт Sora
+```
+
+## Структура проекта
+
+```
+src-tauri/src/lib.rs          — Вся логика бэкенда
+src/App.tsx                   — Главный layout, 3 вкладки
+src/components/
+  ├── FreenetPage.tsx         — Кнопка питания, индикаторы статуса
+  ├── DownloadsPage.tsx       — Карточки скачивания сервисов
+  ├── SettingsPage.tsx        — Настройки: bat-файл, версия, hosts
+  ├── NavBar.tsx              — Навигация со стеклянной анимацией
+  ├── TitleBar.tsx            — Кастомный заголовок окна
+  └── StatusBar.tsx           — Нижняя панель со статусом
+```
+
+## Сборка
 
 ```bash
-# Install dependencies
+# Установка зависимостей
 npm install
 
-# Dev mode
+# Режим разработки
 npm run tauri dev
 
-# Production build
+# Продакшн-сборка
 npm run tauri build
 ```
 
-Output: `src-tauri/target/release/bundle/`
+Результат: `src-tauri/target/release/bundle/`
 
-## Structure
+## Сервисы
 
-```
-src-tauri/src/lib.rs   — All backend logic (commands, process mgmt, downloads)
-src/App.tsx            — Main layout, 3 pages
-src/components/
-  FreenetPage.tsx      — Power button, status indicators, bat file selector
-  DownloadsPage.tsx    — Service download cards with progress
-  SettingsPage.tsx     — Config: bat file, release version, hosts bypass
-  NavBar.tsx           — Telegram-style sliding glass border
-  TitleBar.tsx         — Custom window titlebar
-  StatusBar.tsx        — Footer with connection status
-```
+| Сервис | Репозиторий | Назначение |
+|--------|-------------|------------|
+| zapret | [Flowseal/zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube) | DPI desync для Discord/YouTube |
+| tg-ws-proxy | [Flowseal/tg-ws-proxy](https://github.com/Flowseal/tg-ws-proxy) | WebSocket-прокси для Telegram |
 
-## Services
-
-| Service | Repo | Purpose |
-|---------|------|---------|
-| zapret | [Flowseal/zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube) | DPI desync for Discord/YouTube |
-| tg-ws-proxy | [Flowseal/tg-ws-proxy](https://github.com/Flowseal/tg-ws-proxy) | Telegram WebSocket proxy |
-
-## License
+## Лицензия
 
 MIT
