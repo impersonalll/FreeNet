@@ -1,6 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export default function TitleBar() {
+  const window = getCurrentWindow();
+
   const minimize = () => {
     invoke("minimize_window");
   };
@@ -9,9 +12,14 @@ export default function TitleBar() {
     invoke("hide_window");
   };
 
+  const handleDoubleClick = () => {
+    window.toggleMaximize();
+  };
+
   return (
     <header
       data-tauri-drag-region
+      onDoubleClick={handleDoubleClick}
       className="bg-surface/40 liquid-blur border-b border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] flex justify-between items-center px-6 h-14 w-full shrink-0"
     >
       <div className="flex items-center" data-tauri-drag-region>
