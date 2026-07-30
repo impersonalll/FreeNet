@@ -965,6 +965,93 @@ fn cleanup_all_processes(app: &tauri::AppHandle) {
         .output();
 }
 
+// --- App update ---
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct UpdateInfo {
+    pub current_version: String,
+    pub latest_version: String,
+    pub needs_update: bool,
+    pub download_url: String,
+}
+
+#[tauri::command]
+async fn check_app_update() -> Result<UpdateInfo, String> {
+    let current_version = env!("CARGO_PKG_VERSION").to_string();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| format!("Client error: {}", e))?;
+    let resp = client
+        .get("https://api.github.com/repos/impersonalll/FreeNet/releases/latest")
+        .header("User-Agent", "FREENET")
+        .send()
+        .await
+        .map_err(|e| format!("HTTP error: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("GitHub API error: {}", resp.status()));
+    }
+    let release: GitHubRelease = resp
+        .json()
+        .await
+        .map_err(|e| format!("JSON parse error: {}", e))?;
+    let latest_version = extract_version_from_tag(&release.tag_name);
+    let needs_update = latest_version != current_version;
+    let download_url = if needs_update {
+        release
+            .assets
+            .iter()
+            .find(|a| a.name.ends_with(".exe") && !a.name.contains("setup"))
+            .map(|a| a.browser_download_url.clone())
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+    Ok(UpdateInfo {
+        current_version,
+        latest_version,
+        needs_update,
+        download_url,
+    })
+}
+
+#[tauri::command]
+async fn apply_app_update(download_url: String) -> Result<String, String> {
+    let exe_path = std::env::current_exe().map_err(|e| format!("Cannot get exe path: {}", e))?;
+    let exe_dir = exe_path.parent().ok_or("Cannot get exe dir")?;
+    let temp_exe = exe_dir.join("freenet-update.exe");
+    let bat_path = exe_dir.join("freenet-update.bat");
+
+    // Download new exe
+    download_file(&download_url, &temp_exe).await?;
+
+    // Create batch script that replaces exe and restarts
+    let bat_content = format!(
+        r#"@echo off
+timeout /t 2 /nobreak > nul
+del /f /q "{}"
+move /y "{}" "{}"
+start "" "{}"
+del /f /q "%~f0""#,
+        exe_path.to_string_lossy(),
+        temp_exe.to_string_lossy(),
+        exe_path.to_string_lossy(),
+        exe_path.to_string_lossy(),
+    );
+    fs::write(&bat_path, bat_content).map_err(|e| format!("Cannot write update bat: {}", e))?;
+
+    // Launch the bat file detached
+    use std::process::Command;
+    Command::new("cmd.exe")
+        .args(["/c", bat_path.to_string_lossy().as_ref()])
+        .creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW)
+        .spawn()
+        .map_err(|e| format!("Cannot start update: {}", e))?;
+
+    // Exit current process
+    std::process::exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Single instance check via named mutex
@@ -1011,6 +1098,8 @@ pub fn run() {
             load_config_value,
             get_hosts_status,
             set_hosts_bypass,
+            check_app_update,
+            apply_app_update,
         ])
         .setup(|app| {
             if !is_admin_check() {

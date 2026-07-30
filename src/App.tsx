@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import TitleBar from "./components/TitleBar";
 import NavBar from "./components/NavBar";
 import StatusBar from "./components/StatusBar";
@@ -21,8 +22,11 @@ export interface AppState {
   zapret: ServiceStatus;
 }
 
+type LoaderPhase = "checking" | "updating" | "ready";
+
 function App() {
-  const [loading, setLoading] = useState(true);
+  const [loaderPhase, setLoaderPhase] = useState<LoaderPhase>("checking");
+  const [loaderText, setLoaderText] = useState("CHECKING FOR UPDATES...");
   const [activePage, setActivePage] = useState<Page>("freenet");
   const [appState, setAppState] = useState<AppState>({
     tg_proxy: {
@@ -42,13 +46,33 @@ function App() {
   });
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1500);
-    return () => clearTimeout(timer);
+    checkForUpdate();
   }, []);
+
+  const checkForUpdate = async () => {
+    try {
+      const info = await invoke<{
+        current_version: string;
+        latest_version: string;
+        needs_update: boolean;
+        download_url: string;
+      }>("check_app_update");
+
+      if (info.needs_update && info.download_url) {
+        setLoaderText(`UPDATING v${info.current_version} → v${info.latest_version}...`);
+        setLoaderPhase("updating");
+        await invoke("apply_app_update", { downloadUrl: info.download_url });
+        // App will restart via batch script — this line won't be reached
+      }
+    } catch (e) {
+      console.warn("Update check failed:", e);
+    }
+    setLoaderPhase("ready");
+  };
 
   const isAnyRunning = appState.tg_proxy.running || appState.zapret.running;
 
-  if (loading) {
+  if (loaderPhase !== "ready") {
     return (
       <div className="w-screen h-screen flex items-center justify-center overflow-hidden relative" style={{ backgroundColor: "#0a0118" }}>
         <div className="absolute inset-0 bg-mesh pointer-events-none" />
@@ -56,17 +80,19 @@ function App() {
         <div className="absolute w-[700px] h-[700px] bg-tertiary-container/10 rounded-full blur-[140px] -bottom-48 -right-48 mix-blend-screen pointer-events-none opacity-50" />
         <div className="flex flex-col items-center gap-6 z-10">
           <div className="relative">
-            <div className="w-20 h-20 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+            <div className={`w-20 h-20 rounded-full border-2 border-primary/30 border-t-primary ${loaderPhase === "updating" ? "animate-spin" : "animate-spin"}`} />
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[36px] text-primary">bolt</span>
+              <span className="material-symbols-outlined text-[36px] text-primary">
+                {loaderPhase === "updating" ? "system_update" : "bolt"}
+              </span>
             </div>
           </div>
           <div className="text-center">
             <h1 className="font-headline text-headline-sm text-on-surface tracking-[0.3em] font-bold uppercase mb-2">
               FREENET
             </h1>
-            <p className="font-body text-[12px] text-on-surface-variant opacity-50 tracking-widest">
-              INITIALIZING
+            <p className={`font-body text-[12px] tracking-widest ${loaderPhase === "updating" ? "text-green-400/80 animate-pulse" : "text-on-surface-variant opacity-50"}`}>
+              {loaderText}
             </p>
           </div>
         </div>
