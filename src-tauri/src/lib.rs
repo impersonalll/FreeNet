@@ -967,6 +967,23 @@ fn cleanup_all_processes(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Single instance check via named mutex
+    {
+        use std::ffi::c_void;
+        extern "system" {
+            fn CreateMutexW(lpMutexAttributes: *mut c_void, bInitialOwner: i32, lpName: *const u16) -> *mut c_void;
+            fn GetLastError() -> u32;
+        }
+        const ERROR_ALREADY_EXISTS: u32 = 183;
+        let name: Vec<u16> = "Global\\FREENET_SINGLE_INSTANCE\0".encode_utf16().collect();
+        unsafe {
+            let _ = CreateMutexW(std::ptr::null_mut(), 1, name.as_ptr());
+            if GetLastError() == ERROR_ALREADY_EXISTS {
+                return;
+            }
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(AppStateWrapper {
