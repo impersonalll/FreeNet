@@ -50,6 +50,7 @@ pub struct AppConfig {
     pub zapret_bat_file: Option<String>,
     pub zapret_release: Option<String>,
     pub hosts_bypass: Option<bool>,
+    pub download_dir: Option<String>,
 }
 
 pub struct AppStateWrapper {
@@ -87,14 +88,25 @@ fn get_data_dir(app: &tauri::AppHandle) -> PathBuf {
     dir
 }
 
+fn get_download_dir(app: &tauri::AppHandle) -> PathBuf {
+    let config = load_config(app);
+    if let Some(ref custom) = config.download_dir {
+        let p = PathBuf::from(custom);
+        if p.exists() {
+            return p;
+        }
+    }
+    get_data_dir(app)
+}
+
 fn get_zapret_dir(app: &tauri::AppHandle) -> PathBuf {
-    let dir = get_data_dir(app).join("zapret");
+    let dir = get_download_dir(app).join("zapret");
     fs::create_dir_all(&dir).ok();
     dir
 }
 
 fn get_tg_proxy_dir(app: &tauri::AppHandle) -> PathBuf {
-    let dir = get_data_dir(app).join("tg-ws-proxy");
+    let dir = get_download_dir(app).join("tg-ws-proxy");
     fs::create_dir_all(&dir).ok();
     dir
 }
@@ -310,6 +322,25 @@ fn find_bat_recursive(dir: &PathBuf, target: &str) -> Result<PathBuf, String> {
 #[tauri::command]
 fn get_data_dir_path(app: tauri::AppHandle) -> String {
     get_data_dir(&app).to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn get_download_dir_path(app: tauri::AppHandle) -> String {
+    get_download_dir(&app).to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn select_download_dir(app: tauri::AppHandle) -> Option<String> {
+    let handle = rfd::FileDialog::new()
+        .set_title("Выберите папку для загрузок")
+        .pick_folder()?;
+    let path_str = handle.to_string_lossy().to_string();
+    let mut config = load_config(&app);
+    config.download_dir = Some(path_str.clone());
+    let config_path = get_config_path(&app);
+    let data = serde_json::to_string_pretty(&config).ok()?;
+    fs::write(&config_path, data).ok();
+    Some(path_str)
 }
 
 #[tauri::command]
@@ -844,6 +875,7 @@ fn save_config_value(
         "zapret_bat_file" => config.zapret_bat_file = Some(value),
         "zapret_release" => config.zapret_release = Some(value),
         "hosts_bypass" => config.hosts_bypass = Some(value == "true"),
+        "download_dir" => config.download_dir = Some(value),
         _ => {}
     }
     save_config_to_disk(&app, &config);
@@ -946,6 +978,8 @@ pub fn run() {
             minimize_window,
             hide_window,
             get_data_dir_path,
+            get_download_dir_path,
+            select_download_dir,
             is_installed,
             get_installed_version,
             check_version,

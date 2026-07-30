@@ -11,11 +11,13 @@ export default function SettingsPage() {
   const [zapretBatFile, setZapretBatFile] = useState("general.bat");
   const [availableBatFiles, setAvailableBatFiles] = useState<string[]>([]);
   const [dataDir, setDataDir] = useState("");
+  const [downloadDir, setDownloadDir] = useState("");
   const [hostsBypass, setHostsBypass] = useState(false);
   const [hostsLoading, setHostsLoading] = useState(false);
 
   useEffect(() => {
     loadDataDir();
+    loadDownloadDir();
     loadBatFiles();
     loadHostsStatus();
     loadSavedBatFile();
@@ -27,6 +29,24 @@ export default function SettingsPage() {
       setDataDir(dir);
     } catch (e) {
       console.error("Failed to get data dir:", e);
+    }
+  };
+
+  const loadDownloadDir = async () => {
+    try {
+      const dir = await invoke<string>("get_download_dir_path");
+      setDownloadDir(dir);
+    } catch (e) {
+      console.error("Failed to get download dir:", e);
+    }
+  };
+
+  const selectDownloadDir = async () => {
+    try {
+      const dir = await invoke<string | null>("select_download_dir");
+      if (dir) setDownloadDir(dir);
+    } catch (e) {
+      console.error("Failed to select dir:", e);
     }
   };
 
@@ -169,12 +189,32 @@ export default function SettingsPage() {
           <SettingsSection title="Paths">
             <div className="glass-card rounded-xl p-4 border border-white/10 bg-surface/30 liquid-blur">
               <h4 className="font-label text-[13px] text-on-surface tracking-[0.03em] font-bold mb-1">
-                Data directory
+                Download directory
               </h4>
               <p className="font-body text-[12px] text-on-surface-variant opacity-60 mb-2">
-                Where zapret and tg-ws-proxy are stored
+                Where zapret and tg-ws-proxy files are stored
               </p>
-              <code className="block bg-surface-container-high/60 border border-white/8 rounded-lg px-3 py-2 font-mono text-[12px] text-primary/80 break-all">
+              <div className="flex gap-2">
+                <code className="flex-1 bg-surface-container-high/60 border border-white/8 rounded-lg px-3 py-2 font-mono text-[12px] text-primary/80 break-all truncate">
+                  {downloadDir || "Loading..."}
+                </code>
+                <button
+                  onClick={selectDownloadDir}
+                  className="px-4 py-2 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/20 text-primary text-[11px] font-bold tracking-wider transition-all duration-200 active:scale-[0.97] shrink-0"
+                >
+                  CHANGE
+                </button>
+              </div>
+            </div>
+
+            <div className="glass-card rounded-xl p-4 border border-white/10 bg-surface/30 liquid-blur">
+              <h4 className="font-label text-[13px] text-on-surface tracking-[0.03em] font-bold mb-1">
+                App data directory
+              </h4>
+              <p className="font-body text-[12px] text-on-surface-variant opacity-60 mb-2">
+                Internal application data
+              </p>
+              <code className="block bg-surface-container-high/60 border border-white/8 rounded-lg px-3 py-2 font-mono text-[12px] text-outline/50 break-all">
                 {dataDir || "Loading..."}
               </code>
             </div>
