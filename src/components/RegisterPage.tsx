@@ -21,7 +21,7 @@ export default function RegisterPage() {
             <input
               type="text"
               placeholder="Enter username"
-              className="w-full bg-surface-container/80 border border-white/10 rounded-xl px-4 py-3 font-body text-body-md text-on-surface placeholder:text-outline/40 focus:outline-none focus:border-primary/50 focus:shadow-[0_0_20px_rgba(188,19,254,0.15)] transition-all duration-300"
+              className="w-full bg-surface-container/80 rounded-xl px-4 py-3 font-body text-body-md text-on-surface placeholder:text-outline/40 border border-primary/15 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:shadow-[0_0_20px_rgba(188,19,254,0.12)] transition-all duration-300"
             />
           </div>
 
@@ -32,7 +32,7 @@ export default function RegisterPage() {
             <input
               type="email"
               placeholder="Enter email"
-              className="w-full bg-surface-container/80 border border-white/10 rounded-xl px-4 py-3 font-body text-body-md text-on-surface placeholder:text-outline/40 focus:outline-none focus:border-primary/50 focus:shadow-[0_0_20px_rgba(188,19,254,0.15)] transition-all duration-300"
+              className="w-full bg-surface-container/80 rounded-xl px-4 py-3 font-body text-body-md text-on-surface placeholder:text-outline/40 border border-primary/15 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:shadow-[0_0_20px_rgba(188,19,254,0.12)] transition-all duration-300"
             />
           </div>
 
@@ -43,7 +43,7 @@ export default function RegisterPage() {
             <input
               type="password"
               placeholder="Enter password"
-              className="w-full bg-surface-container/80 border border-white/10 rounded-xl px-4 py-3 font-body text-body-md text-on-surface placeholder:text-outline/40 focus:outline-none focus:border-primary/50 focus:shadow-[0_0_20px_rgba(188,19,254,0.15)] transition-all duration-300"
+              className="w-full bg-surface-container/80 rounded-xl px-4 py-3 font-body text-body-md text-on-surface placeholder:text-outline/40 border border-primary/15 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:shadow-[0_0_20px_rgba(188,19,254,0.12)] transition-all duration-300"
             />
           </div>
 

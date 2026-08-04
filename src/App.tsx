@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { LogicalSize } from "@tauri-apps/api/dpi";
 import TitleBar from "./components/TitleBar";
 import NavBar from "./components/NavBar";
 import StatusBar from "./components/StatusBar";
 import FreenetPage from "./components/FreenetPage";
-import DownloadsPage from "./components/DownloadsPage";
 import SettingsPage from "./components/SettingsPage";
+import PluginsPage from "./components/PluginsPage";
+import BypassPage from "./components/BypassPage";
+import { ToastProvider } from "./components/Toast";
 
-export type Page = "freenet" | "downloads" | "settings";
+export type Page = "freenet" | "bypass" | "plugins" | "settings";
 
 export interface ServiceStatus {
   name: string;
@@ -28,6 +32,7 @@ function App() {
   const [loaderPhase, setLoaderPhase] = useState<LoaderPhase>("checking");
   const [loaderText, setLoaderText] = useState("CHECKING FOR UPDATES...");
   const [activePage, setActivePage] = useState<Page>("freenet");
+  const [activeBypass, setActiveBypass] = useState<string | null>(null);
   const [appState, setAppState] = useState<AppState>({
     tg_proxy: {
       name: "tg-ws-proxy",
@@ -49,6 +54,27 @@ function App() {
     checkForUpdate();
   }, []);
 
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const active = await invoke<string | null>("get_active_bypass");
+        setActiveBypass(active);
+      } catch (e) {
+        console.warn("Active bypass poll failed:", e);
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (activePage !== "plugins") {
+      const win = getCurrentWindow();
+      win.setSize(new LogicalSize(920, 720));
+    }
+  }, [activePage]);
+
   const checkForUpdate = async () => {
     try {
       const info = await invoke<{
@@ -62,7 +88,6 @@ function App() {
         setLoaderText(`UPDATING v${info.current_version} → v${info.latest_version}...`);
         setLoaderPhase("updating");
         await invoke("apply_app_update", { downloadUrl: info.download_url });
-        // App will restart via batch script — this line won't be reached
       }
     } catch (e) {
       console.warn("Update check failed:", e);
@@ -102,36 +127,37 @@ function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case "downloads":
-        return <DownloadsPage appState={appState} setAppState={setAppState} />;
+      case "bypass":
+        return <BypassPage />;
+      case "plugins":
+        return <PluginsPage />;
       case "settings":
         return <SettingsPage />;
       default:
-        return (
-          <FreenetPage appState={appState} setAppState={setAppState} />
-        );
+        return <FreenetPage appState={appState} setAppState={setAppState} />;
     }
   };
 
   return (
-    <div className="w-screen h-screen flex items-center justify-center overflow-hidden relative">
-      <div className="w-[920px] h-[720px] rounded-[32px] bg-[#0a0118] flex flex-col relative z-10 overflow-hidden border border-white/10">
-        <div className="absolute inset-0 bg-mesh pointer-events-none" />
-        <div className="absolute w-[900px] h-[900px] bg-primary/10 rounded-full blur-[160px] -top-80 -left-80 mix-blend-screen pointer-events-none opacity-50" />
-        <div className="absolute w-[700px] h-[700px] bg-tertiary-container/10 rounded-full blur-[140px] -bottom-48 -right-48 mix-blend-screen pointer-events-none opacity-50" />
-        <div className="glass-shine" />
+    <ToastProvider>
+      <div className="w-screen h-screen flex items-center justify-center overflow-hidden relative">
+        <div className="w-[920px] h-[720px] rounded-[32px] bg-[#0a0118] flex flex-col relative z-10 overflow-hidden border border-white/10">
+          <div className="absolute inset-0 bg-mesh pointer-events-none" />
+          <div className="absolute w-[900px] h-[900px] bg-primary/10 rounded-full blur-[160px] -top-80 -left-80 mix-blend-screen pointer-events-none opacity-50" />
+          <div className="absolute w-[700px] h-[700px] bg-tertiary-container/10 rounded-full blur-[140px] -bottom-48 -right-48 mix-blend-screen pointer-events-none opacity-50" />
+          <div className="glass-shine" />
 
-        <TitleBar />
+          <TitleBar />
+          <NavBar activePage={activePage} onPageChange={setActivePage} />
 
-        <NavBar activePage={activePage} onPageChange={setActivePage} />
+          <main className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
+            {renderPage()}
+          </main>
 
-        <main className="flex-1 flex flex-col items-center justify-center relative overflow-hidden">
-          {renderPage()}
-        </main>
-
-        <StatusBar isRunning={isAnyRunning} />
+          <StatusBar isRunning={isAnyRunning} activeBypass={activeBypass} />
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }
 

@@ -1,8 +1,9 @@
 interface StatusBarProps {
   isRunning: boolean;
+  activeBypass?: string | null;
 }
 
-export default function StatusBar({ isRunning }: StatusBarProps) {
+export default function StatusBar({ isRunning, activeBypass }: StatusBarProps) {
   return (
     <footer className="h-12 bg-surface/50 liquid-blur border-t border-white/15 px-6 flex items-center justify-between shrink-0">
       <div className="flex items-center gap-4">
@@ -14,7 +15,7 @@ export default function StatusBar({ isRunning }: StatusBarProps) {
           } status-dot`}
         />
         <span className="font-label text-label-md tracking-[0.2em] font-bold uppercase text-primary">
-          {isRunning ? "Connected" : "Ready for connection"}
+          {isRunning ? `Connected · ${activeBypass ?? "Bypass"}` : "Ready for connection"}
         </span>
       </div>
       <div className="flex items-center gap-8">

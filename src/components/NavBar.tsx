@@ -9,8 +9,8 @@ interface NavBarProps {
 export default function NavBar({ activePage, onPageChange }: NavBarProps) {
   const tabs: { id: Page; label: string }[] = [
     { id: "freenet", label: "FREENET" },
-    { id: "downloads", label: "DOWNLOADS" },
-    { id: "settings", label: "SETTINGS" },
+    { id: "bypass", label: "BYPASS" },
+    { id: "plugins", label: "PLUGINS" },
   ];
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,7 +34,6 @@ export default function NavBar({ activePage, onPageChange }: NavBarProps) {
   return (
     <div className="bg-surface-container-low/20 liquid-blur border-b border-white/10 flex justify-between items-center px-6 h-14 w-full shrink-0">
       <div ref={containerRef} className="relative flex items-center">
-        {/* Sliding glass indicator */}
         <div
           className="absolute top-1 bottom-1 rounded-full bg-primary/15 border border-primary/25 backdrop-blur-md transition-all duration-300 ease-out shadow-[0_0_12px_rgba(188,19,254,0.15)]"
           style={{
@@ -61,10 +60,20 @@ export default function NavBar({ activePage, onPageChange }: NavBarProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-8">
+      <div className="flex items-center gap-4">
         <span className="font-label text-label-md text-outline/40 tracking-widest text-xs">
           v1.0.0
         </span>
+        <button
+          onClick={() => onPageChange(activePage === "settings" ? "freenet" : "settings")}
+          className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${
+            activePage === "settings"
+              ? "text-primary bg-primary/15"
+              : "text-on-surface-variant hover:text-on-surface hover:bg-white/10"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[20px]">settings</span>
+        </button>
       </div>
     </div>
   );

@@ -1,26 +1,30 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useToast } from "./Toast";
 
-interface ReleaseInfo {
-  tag: string;
-  version: string;
-  date: string;
+interface HostsProvider {
+  key: string;
+  name: string;
+  description: string;
+  url: string | null;
+  custom: boolean;
 }
 
 export default function SettingsPage() {
-  const [zapretBatFile, setZapretBatFile] = useState("general.bat");
-  const [availableBatFiles, setAvailableBatFiles] = useState<string[]>([]);
+  const toast = useToast();
   const [dataDir, setDataDir] = useState("");
   const [downloadDir, setDownloadDir] = useState("");
   const [hostsBypass, setHostsBypass] = useState(false);
   const [hostsLoading, setHostsLoading] = useState(false);
+  const [hostsProviders, setHostsProviders] = useState<HostsProvider[]>([]);
+  const [selectedProviders, setSelectedProviders] = useState<string[]>([]);
+  const [customHostsUrl, setCustomHostsUrl] = useState("");
 
   useEffect(() => {
     loadDataDir();
     loadDownloadDir();
-    loadBatFiles();
     loadHostsStatus();
-    loadSavedBatFile();
+    loadHostsProviders();
   }, []);
 
   const loadDataDir = async () => {
@@ -50,24 +54,6 @@ export default function SettingsPage() {
     }
   };
 
-  const loadBatFiles = async () => {
-    try {
-      const files = await invoke<string[]>("list_bat_files");
-      setAvailableBatFiles(files);
-    } catch (e) {
-      console.error("Failed to load bat files:", e);
-    }
-  };
-
-  const loadSavedBatFile = async () => {
-    try {
-      const saved = await invoke<string | null>("load_config_value", { key: "zapret_bat_file" });
-      if (saved) setZapretBatFile(saved);
-    } catch (e) {
-      console.error("Failed to load config:", e);
-    }
-  };
-
   const loadHostsStatus = async () => {
     try {
       const status = await invoke<boolean>("get_hosts_status");
@@ -77,26 +63,61 @@ export default function SettingsPage() {
     }
   };
 
-  const saveBatFile = async (file: string) => {
-    setZapretBatFile(file);
-    try {
-      await invoke("save_config_value", { key: "zapret_bat_file", value: file });
-    } catch (e) {
-      console.error("Failed to save config:", e);
-    }
-  };
-
   const toggleHostsBypass = async () => {
     setHostsLoading(true);
     try {
       const newState = !hostsBypass;
+      if (newState && selectedProviders.length === 0) {
+        toast.warning("No providers selected", "Select at least one hosts provider first.");
+        setHostsLoading(false);
+        return;
+      }
       await invoke("set_hosts_bypass", { enabled: newState });
       setHostsBypass(newState);
+      if (newState) {
+        toast.success("Hosts bypass enabled", `Providers: ${selectedProviders.join(", ")}`);
+      } else {
+        toast.info("Hosts bypass disabled");
+      }
     } catch (e) {
       console.error("Failed to toggle hosts:", e);
-      alert(`Error: ${e}`);
+      toast.error("Failed to toggle hosts", String(e));
     } finally {
       setHostsLoading(false);
+    }
+  };
+
+  const loadHostsProviders = async () => {
+    try {
+      const providers = await invoke<HostsProvider[]>("get_hosts_providers");
+      setHostsProviders(providers);
+      const saved = await invoke<string[]>("get_selected_hosts_providers");
+      if (saved.length > 0) setSelectedProviders(saved);
+      const savedUrl = await invoke<string | null>("load_config_value", { key: "custom_hosts_url" });
+      if (savedUrl) setCustomHostsUrl(savedUrl);
+    } catch (e) {
+      console.error("Failed to load hosts providers:", e);
+    }
+  };
+
+  const toggleHostsProvider = async (key: string) => {
+    const next = selectedProviders.includes(key)
+      ? selectedProviders.filter((p) => p !== key)
+      : [...selectedProviders, key];
+    setSelectedProviders(next);
+    try {
+      await invoke("set_selected_hosts_providers", { providers: next });
+    } catch (e) {
+      console.error("Failed to save hosts providers:", e);
+    }
+  };
+
+  const saveCustomHostsUrl = async () => {
+    try {
+      await invoke("save_config_value", { key: "custom_hosts_url", value: customHostsUrl });
+      toast.success("Custom hosts URL saved");
+    } catch (e) {
+      toast.error("Failed to save URL", String(e));
     }
   };
 
@@ -115,41 +136,6 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-8">
-          {/* Bat file selector */}
-          <SettingsSection title="zapret Strategy">
-            <div className="glass-card rounded-xl p-4 border border-white/10 bg-surface/30 liquid-blur">
-              <h4 className="font-label text-[13px] text-on-surface tracking-[0.03em] font-bold mb-1">
-                Bat file
-              </h4>
-              <p className="font-body text-[12px] text-on-surface-variant opacity-60 mb-3">
-                Which strategy zapret uses when launching
-              </p>
-              {availableBatFiles.length === 0 ? (
-                <p className="text-[12px] text-outline/50 italic">
-                  No bat files found. Download zapret first.
-                </p>
-              ) : (
-                <select
-                  value={zapretBatFile}
-                  onChange={(e) => saveBatFile(e.target.value)}
-                  className="w-full bg-surface-container-high/60 border border-white/8 rounded-lg px-3 py-2 font-body text-[13px] text-on-surface focus:outline-none focus:border-primary/40 transition-all duration-300"
-                >
-                  {availableBatFiles.map((f) => (
-                    <option key={f} value={f}>
-                      {f.replace(".bat", "")}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          </SettingsSection>
-
-          {/* Release selector */}
-          <SettingsSection title="zapret Version">
-            <ReleaseSelector />
-          </SettingsSection>
-
-          {/* Hosts bypass */}
           <SettingsSection title="Other Sites Bypass">
             <div className="glass-card rounded-xl p-4 border border-white/10 bg-surface/30 liquid-blur">
               <div className="flex items-center justify-between mb-2">
@@ -167,7 +153,7 @@ export default function SettingsPage() {
                   className={`w-12 h-6 rounded-full transition-all duration-300 relative cursor-pointer shrink-0 ml-4 ${
                     hostsBypass
                       ? "bg-primary-container shadow-[0_0_12px_rgba(188,19,254,0.4)]"
-                      : "bg-surface-container-high border border-white/10"
+                      : "bg-surface-container-high border border-primary/15"
                   } ${hostsLoading ? "opacity-50" : ""}`}
                 >
                   <div
@@ -177,15 +163,80 @@ export default function SettingsPage() {
                   />
                 </button>
               </div>
+
+              <div className="mt-4">
+                <h5 className="font-label text-[11px] text-on-surface-variant tracking-[0.1em] font-bold uppercase mb-2">
+                  Hosts providers (select one or more)
+                </h5>
+                <div className="space-y-1.5">
+                  {hostsProviders.map((p) => {
+                    const selected = selectedProviders.includes(p.key);
+                    return (
+                      <button
+                        key={p.key}
+                        type="button"
+                        onClick={() => toggleHostsProvider(p.key)}
+                        aria-pressed={selected}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border font-body text-[13px] text-on-surface transition-all duration-200 cursor-pointer text-left ${
+                          selected
+                            ? "bg-primary/10 border-primary/40"
+                            : "bg-surface-container-high/40 border-primary/15 hover:border-primary/30"
+                        }`}
+                      >
+                        <span
+                          className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-all duration-200 ${
+                            selected
+                              ? "bg-primary border-primary"
+                              : "bg-surface-container-high border-primary/25"
+                          }`}
+                        >
+                          {selected && (
+                            <span className="material-symbols-outlined text-[14px] text-white">check</span>
+                          )}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block font-label text-[12.5px] font-bold">{p.name}</span>
+                          <span className="block text-[10.5px] text-on-surface-variant/60 truncate">
+                            {p.description}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {selectedProviders.includes("custom") && (
+                <div className="mt-3">
+                  <h5 className="font-label text-[11px] text-on-surface-variant tracking-[0.1em] font-bold uppercase mb-2">
+                    Custom hosts file URL
+                  </h5>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customHostsUrl}
+                      onChange={(e) => setCustomHostsUrl(e.target.value)}
+                      placeholder="https://example.com/hosts.txt"
+                      className="flex-1 bg-surface-container-high/60 rounded-lg px-3 py-2 font-mono text-[12px] text-on-surface placeholder:text-outline/40 border border-primary/15 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all duration-200"
+                    />
+                    <button
+                      onClick={saveCustomHostsUrl}
+                      className="px-3 py-2 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/20 text-primary text-[11px] font-bold tracking-wider transition-all duration-200 active:scale-[0.97] shrink-0"
+                    >
+                      SAVE
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
                 <p className="font-body text-[11px] text-yellow-300/80 leading-relaxed">
-                  <span className="font-bold">WARNING:</span> This modifies the Windows hosts file. Requires admin rights. May not work for all sites — only effective for DNS-level blocks. IP-level blocks need a VPN/proxy. Domains: SoundCloud, Gemini, ChatGPT, OpenAI, Telegram.
+                  <span className="font-bold">WARNING:</span> This modifies the Windows hosts file. Requires admin rights. Blocks advertising, trackers and bypasses DNS blocks. Remote lists are fetched and parsed when you enable the toggle.
                 </p>
               </div>
             </div>
           </SettingsSection>
 
-          {/* Paths */}
           <SettingsSection title="Paths">
             <div className="glass-card rounded-xl p-4 border border-white/10 bg-surface/30 liquid-blur">
               <h4 className="font-label text-[13px] text-on-surface tracking-[0.03em] font-bold mb-1">
@@ -195,7 +246,7 @@ export default function SettingsPage() {
                 Where zapret and tg-ws-proxy files are stored
               </p>
               <div className="flex gap-2">
-                <code className="flex-1 bg-surface-container-high/60 border border-white/8 rounded-lg px-3 py-2 font-mono text-[12px] text-primary/80 break-all truncate">
+                <code className="flex-1 bg-surface-container-high/60 border border-primary/15 rounded-lg px-3 py-2 font-mono text-[12px] text-primary/80 break-all truncate">
                   {downloadDir || "Loading..."}
                 </code>
                 <button
@@ -214,129 +265,13 @@ export default function SettingsPage() {
               <p className="font-body text-[12px] text-on-surface-variant opacity-60 mb-2">
                 Internal application data
               </p>
-              <code className="block bg-surface-container-high/60 border border-white/8 rounded-lg px-3 py-2 font-mono text-[12px] text-outline/50 break-all">
+              <code className="block bg-surface-container-high/60 border border-primary/15 rounded-lg px-3 py-2 font-mono text-[12px] text-outline/50 break-all">
                 {dataDir || "Loading..."}
               </code>
             </div>
           </SettingsSection>
         </div>
       </div>
-    </div>
-  );
-}
-
-function ReleaseSelector() {
-  const [releases, setReleases] = useState<ReleaseInfo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadMsg, setDownloadMsg] = useState("");
-  const [installedVersion, setInstalledVersion] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadReleases();
-    loadInstalled();
-  }, []);
-
-  const loadReleases = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const list = await invoke<ReleaseInfo[]>("list_releases", { service: "zapret-discord-youtube" });
-      setReleases(list);
-    } catch (e) {
-      console.error("Failed to load releases:", e);
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadInstalled = async () => {
-    try {
-      const v = await invoke<string | null>("get_installed_version", { service: "zapret-discord-youtube" });
-      setInstalledVersion(v);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleDownload = async (version: string) => {
-    setDownloading(true);
-    setDownloadMsg(`Downloading v${version}...`);
-    try {
-      const result = await invoke<string>("download_release", {
-        service: "zapret-discord-youtube",
-        version: version,
-      });
-      setDownloadMsg(result);
-      setInstalledVersion(version);
-      setTimeout(() => setDownloadMsg(""), 3000);
-    } catch (e) {
-      setDownloadMsg(`Error: ${e}`);
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  return (
-    <div className="glass-card rounded-xl p-4 border border-white/10 bg-surface/30 liquid-blur">
-      <h4 className="font-label text-[13px] text-on-surface tracking-[0.03em] font-bold mb-1">
-        Select version
-      </h4>
-      <p className="font-body text-[12px] text-on-surface-variant opacity-60 mb-3">
-        Choose a specific release to install
-      </p>
-
-      {loading ? (
-        <p className="text-[12px] text-outline/50 italic">Loading releases...</p>
-      ) : error ? (
-        <div className="text-center">
-          <p className="text-[12px] text-red-400/80 mb-2">Failed to load releases</p>
-          <p className="text-[10px] text-outline/40 break-all">{error}</p>
-          <button onClick={loadReleases} className="mt-2 text-[11px] text-primary hover:underline">Retry</button>
-        </div>
-      ) : releases.length === 0 ? (
-        <p className="text-[12px] text-outline/50 italic">No releases found.</p>
-      ) : (
-        <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
-          {releases.map((r) => (
-            <div
-              key={r.tag}
-              className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-all duration-200 ${
-                installedVersion === r.version
-                  ? "bg-green-500/10 border-green-500/20"
-                  : selectedVersion === r.version
-                  ? "bg-primary/10 border-primary/30"
-                  : "bg-surface-container-high/30 border-white/5 hover:border-white/15"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-label text-[12px] text-on-surface font-bold">
-                  v{r.version}
-                </span>
-                {installedVersion === r.version && (
-                  <span className="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[9px] font-bold tracking-wider">
-                    INSTALLED
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() => handleDownload(r.version)}
-                disabled={downloading}
-                className="px-3 py-1 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/20 text-primary text-[10px] font-bold tracking-wider transition-all duration-200 active:scale-[0.97] disabled:opacity-40"
-              >
-                {downloading && selectedVersion === r.version ? "..." : "INSTALL"}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {downloadMsg && (
-        <p className="mt-3 font-body text-[11px] text-primary/80 text-center">{downloadMsg}</p>
-      )}
     </div>
   );
 }
@@ -357,3 +292,4 @@ function SettingsSection({
     </div>
   );
 }
+

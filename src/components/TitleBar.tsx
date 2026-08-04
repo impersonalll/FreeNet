@@ -22,7 +22,15 @@ export default function TitleBar() {
       onDoubleClick={handleDoubleClick}
       className="bg-surface/40 liquid-blur border-b border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] flex justify-between items-center px-6 h-14 w-full shrink-0"
     >
-      <div className="flex items-center" data-tauri-drag-region>
+      <div className="flex items-center gap-2.5" data-tauri-drag-region>
+        <div
+          className="w-7 h-7 rounded-[9px] bg-gradient-to-br from-primary/30 to-primary/5 border border-primary/30 flex items-center justify-center shadow-[0_0_12px_rgba(188,19,254,0.35)]"
+          data-tauri-drag-region
+        >
+          <span className="material-symbols-outlined text-[16px] text-primary" data-tauri-drag-region>
+            bolt
+          </span>
+        </div>
         <span
           className="font-headline text-primary tracking-[0.25em] font-bold drop-shadow-[0_0_8px_rgba(188,19,254,0.6)] text-sm uppercase"
           data-tauri-drag-region
